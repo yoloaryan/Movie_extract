@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Information Extraction</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app">
+        <header class="header">
+            <div class="brand">MOVIE<span>EXTRACT</span></div>
+            <div class="status">AI INFORMATION EXTRACTION</div>
+        </header>
+
+        <section class="hero">
+            <p class="eyebrow">STRUCTURED INFORMATION</p>
+            <h1>Extract what the paragraph says.</h1>
+            <p class="subtitle">
+                Paste a movie paragraph and extract only the information explicitly stated in it.
+            </p>
+        </section>
+
+        <section class="workspace">
+            <div class="input-panel">
+                <div class="panel-heading">
+                    <span>01</span>
+                    <h2>Movie Paragraph</h2>
+                </div>
+
+                <div class="samples-bar">
+                    <span class="samples-title">TRY SAMPLE:</span>
+                    <button type="button" class="sample-pill" id="sample1Btn">01 Inception (Sci-Fi)</button>
+                    <button type="button" class="sample-pill" id="sample2Btn">02 The Dark Knight (Action)</button>
+                </div>
+
+                <textarea
+                    id="paragraph"
+                    placeholder="Enter your movie paragraph or click a sample above..."
+                    spellcheck="false"
+                ></textarea>
+
+                <button id="extractBtn" type="button">
+                    <span>EXTRACT INFORMATION</span>
+                    <span class="arrow">→</span>
+                </button>
+
+                <p id="error" class="error"></p>
+            </div>
+
+            <div class="output-panel">
+                <div class="panel-heading">
+                    <span>02</span>
+                    <h2>Extracted Information</h2>
+                </div>
+
+                <div id="results" class="results">
+                    <div class="empty-state">
+                        <div class="empty-line"></div>
+                        <p>Results will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            INFORMATION EXTRACTION • GROQ • LANGCHAIN
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
