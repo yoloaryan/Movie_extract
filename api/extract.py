@@ -107,7 +107,7 @@ class handler(BaseHTTPRequestHandler):
             }).encode("utf-8"))
             return
 
-        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
         try:
             from groq import Groq

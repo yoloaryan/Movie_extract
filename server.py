@@ -73,7 +73,7 @@ async def extract_info(req: ExtractRequest):
     if not api_key:
         raise HTTPException(status_code=500, detail="GROQ_API_KEY environment variable is missing.")
 
-    model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     try:
         client = Groq(api_key=api_key)
