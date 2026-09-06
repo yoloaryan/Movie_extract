@@ -6,8 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
+from groq import Groq
 
 # Load environment variables
 load_dotenv()
@@ -17,18 +16,7 @@ app = FastAPI(title="Movie Information Extraction Bot")
 # Base directory for static files
 BASE_DIR = Path(__file__).resolve().parent
 
-# Initialize Groq LLM
-model = ChatGroq(
-    model="openai/gpt-oss-120b",
-    temperature=0.2
-)
-
-# Extraction Prompt
-prompt_template = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """
-You are a highly accurate information extraction assistant.
+SYSTEM_PROMPT = """You are a highly accurate information extraction assistant.
 
 Your task is to analyze a paragraph about a movie and extract useful,
 structured information from it.
@@ -69,32 +57,33 @@ Quick Summary: ...
 
 Do not add an introduction.
 Do not add an explanation.
-Do not add information outside these fields.
-"""
-    ),
-    (
-        "human",
-        """
-Analyze the following movie paragraph and extract the information
-according to the rules provided above.
-
-PARAGRAPH:
-{paragraph}
-"""
-    )
-])
+Do not add information outside these fields."""
 
 class ExtractRequest(BaseModel):
     paragraph: str
 
 @app.post("/extract")
 async def extract_info(req: ExtractRequest):
-    if not req.paragraph.strip():
+    if not req.paragraph or not req.paragraph.strip():
         raise HTTPException(status_code=400, detail="Paragraph cannot be empty.")
+    
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GROQ_API_KEY environment variable is missing.")
+
+    model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
     try:
-        final_prompt = prompt_template.invoke({"paragraph": req.paragraph})
-        response = model.invoke(final_prompt)
-        return {"result": response.content}
+        client = Groq(api_key=api_key)
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": f"Analyze the following movie paragraph and extract the information according to the rules provided above.\n\nPARAGRAPH:\n{req.paragraph}"}
+            ],
+            temperature=0.2
+        )
+        return {"result": completion.choices[0].message.content}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -110,16 +110,15 @@ async function extractInformation() {
             })
         });
 
+        const data = await response.json().catch(() => null);
+
         if (!response.ok) {
-            throw new Error("The extraction request failed.");
+            const errDetail = data && (data.error || data.detail || data.message);
+            throw new Error(errDetail || `Server error (${response.status})`);
         }
 
-        const data = await response.json();
-
         const extractedText =
-            data.result ||
-            data.content ||
-            "";
+            (data && (data.result || data.content)) || "";
 
         if (!extractedText) {
             throw new Error("No extraction result was returned.");

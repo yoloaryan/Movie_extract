@@ -1,36 +1,17 @@
 import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
+import json
+from http.server import BaseHTTPRequestHandler
 
-# Try loading .env if running in an environment with local .env file
+# Try loading .env if available
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-app = FastAPI(title="Movie Information Extraction Bot API")
+SYSTEM_PROMPT = """You are a highly accurate information extraction assistant.
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Extraction Prompt
-prompt_template = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        """
-You are a highly accurate information extraction assistant.
-
-Your task is to analyze a paragraph about a movie and extract useful,
-structured information from it.
+Your task is to analyze a paragraph about a movie and extract useful, structured information from it.
 
 IMPORTANT:
 You are an INFORMATION EXTRACTION system, not a movie knowledge system.
@@ -68,48 +49,88 @@ Quick Summary: ...
 
 Do not add an introduction.
 Do not add an explanation.
-Do not add information outside these fields.
-"""
-    ),
-    (
-        "human",
-        """
-Analyze the following movie paragraph and extract the information
-according to the rules provided above.
+Do not add information outside these fields."""
 
-PARAGRAPH:
-{paragraph}
-"""
-    )
-])
+class handler(BaseHTTPRequestHandler):
+    def _send_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-class ExtractRequest(BaseModel):
-    paragraph: str
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self._send_cors_headers()
+        self.end_headers()
 
-@app.post("/extract")
-@app.post("/api/extract")
-@app.post("/api/index")
-async def extract_info(req: ExtractRequest):
-    if not req.paragraph or not req.paragraph.strip():
-        raise HTTPException(status_code=400, detail="Paragraph cannot be empty.")
-    
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
-        raise HTTPException(
-            status_code=500,
-            detail="GROQ_API_KEY environment variable is missing. Please configure it in Vercel project settings."
-        )
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self._send_cors_headers()
+        self.end_headers()
+        response = {
+            "status": "online",
+            "message": "Movie Information Extraction API is running."
+        }
+        self.wfile.write(json.dumps(response).encode("utf-8"))
 
-    model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-    
-    try:
-        model = ChatGroq(
-            model=model_name,
-            temperature=0.2,
-            api_key=api_key
-        )
-        final_prompt = prompt_template.invoke({"paragraph": req.paragraph})
-        response = model.invoke(final_prompt)
-        return {"result": response.content}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    def do_POST(self):
+        content_length = int(self.headers.get("Content-Length", 0))
+        post_data = self.rfile.read(content_length)
+
+        try:
+            body = json.loads(post_data.decode("utf-8")) if post_data else {}
+        except Exception:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Invalid JSON format."}).encode("utf-8"))
+            return
+
+        paragraph = body.get("paragraph", "").strip()
+        if not paragraph:
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Paragraph cannot be empty."}).encode("utf-8"))
+            return
+
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "error": "GROQ_API_KEY environment variable is missing. Please add it in your Vercel project Settings -> Environment Variables."
+            }).encode("utf-8"))
+            return
+
+        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+        try:
+            from groq import Groq
+            client = Groq(api_key=api_key)
+            completion = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze the following movie paragraph and extract the information according to the rules provided above.\n\nPARAGRAPH:\n{paragraph}"}
+                ],
+                temperature=0.2
+            )
+            result_text = completion.choices[0].message.content
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"result": result_text}).encode("utf-8"))
+
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
