@@ -63,6 +63,8 @@ class ExtractRequest(BaseModel):
     paragraph: str
 
 @app.post("/extract")
+@app.post("/api/extract")
+@app.post("/api/index")
 async def extract_info(req: ExtractRequest):
     if not req.paragraph or not req.paragraph.strip():
         raise HTTPException(status_code=400, detail="Paragraph cannot be empty.")

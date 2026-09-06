@@ -100,7 +100,7 @@ async function extractInformation() {
     extractBtn.disabled = true;
 
     try {
-        const response = await fetch("/extract", {
+        const response = await fetch("/api/extract", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
